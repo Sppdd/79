@@ -1,12 +1,13 @@
 "use client";
 
-import { Clapperboard, Palette, Sparkles } from "lucide-react";
+import { Clapperboard, Images, Palette, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/", label: "Create", icon: Sparkles },
-  { href: "/projects", label: "Reels", icon: Clapperboard },
+  { href: "/projects", label: "Projects", icon: Clapperboard },
+  { href: "/library", label: "Library", icon: Images },
   { href: "/brand", label: "Brand", icon: Palette },
 ];
 

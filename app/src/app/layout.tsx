@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "NoteReel",
-  description: "Turn quick notes into Reels that sell — directed by NVIDIA Nemotron on Nebius.",
+  description: "An AI commercial studio — NVIDIA Nemotron directs, Nebius shoots.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "NoteReel", statusBarStyle: "default" },
   icons: { icon: "/icons/icon.svg", apple: "/icons/icon.svg" },

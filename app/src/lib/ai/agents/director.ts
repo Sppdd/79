@@ -1,39 +1,55 @@
-// Agent 2 — the creative director. One deep-reasoning call per Reel → Nemotron 3 Ultra.
+// Agent 2 — the director. Turns the brief + locked assets into a connected shot list → Nemotron 3 Ultra.
+// This is the "shot-list skill" pro AI filmmakers use, as an agent: one style prefix, named prompts, continuity.
+import { normalize } from "@/lib/shotlist";
 import { askJson, hasNemotron } from "../nemotron";
-import { ReelPlan, type BrandKit, type Brief } from "../schemas";
-import { demoPlan } from "./demo";
+import { ShotList, type BrandKit, type Brief } from "../schemas";
+import { demoShotList } from "./demo";
 
-const SYSTEM = `You are an award-winning direct-response creative director who makes vertical short-form video ads
-(Instagram Reels, TikTok, Meta ads) that SELL for small businesses.
+export type AssetRef = { name: string; kind: string; description?: string | null };
 
-Rules that make Reels convert:
-- Shot 1 is the hook: a striking visual + bold caption that stops the scroll within 1.5 seconds.
-- Structure: hook → problem/desire → product hero → offer (price/deadline) → CTA end card.
-- Total length 12–25 seconds. Keep captions to ~6 words, readable on a phone.
-- Every generation prompt must be self-contained and visually specific (subject, setting, lighting, lens, color
-  palette), vertical 9:16 composition, and consistent in style across shots so the Reel feels like one piece.
-- Use the brand's primary color as an accent in props or lighting. Never put text or logos inside the image prompt —
-  captions are added in editing.
-- style: "product" for close-ups where the product must look exactly right, "cinematic" for mood/hook shots,
-  "lifestyle" for people enjoying the product.
-- kind: "video" for at most 3 shots where motion matters most; "image" otherwise (animated in editing).
-- Voiceover ≈ 2.5 words per second of total duration, in the brand's voice.
-- The brief is the source of truth for WHAT is sold. Use the brand kit for voice, look and color — never swap the
-  brief's product for the brand's usual products.`;
+const SYSTEM = `You are the director of high-budget TV and social commercials, planning a spot that will be
+generated shot by shot with an image-to-video model (clips of at most 5 seconds each).
 
-export async function directReel(brief: Brief, brand: BrandKit, feedback?: string): Promise<ReelPlan> {
-  if (!hasNemotron()) return demoPlan(brief, brand);
-  return askJson({
+Write ONE connected shot list, not loose prompts:
+- stylePrefix: the shared look (style, lighting, camera language, color/grade, things to avoid). It is glued to every
+  shot, so never repeat style words inside shot prompts. Default to bright, clean, premium commercial light unless
+  the brief needs another mood; always avoid on-screen text, fake logos, warped hands and extra objects.
+- scenes: one story beat per scene. Only set lightingOverride when a scene genuinely needs different light.
+- shots: named 1A, 1B, 2A… Each shot prompt is self-contained: subject, action, setting, framing. Use the locked
+  asset NAMES in "references" for every shot that shows them, and describe them exactly as their description says —
+  the real product must never change shape, color or branding.
+- motion: write the action move by move ("lifts the cup with the right hand", "turns a quarter to camera",
+  "two head nods"), never vague verbs like "dances" or "enjoys".
+- camera: a specific move per shot (push-in, orbit, top-down, worm's-eye, tracking, snorricam). Vary framing:
+  wides, mediums, tight details, one hero product close-up.
+- continuity: when a shot must match the previous one (same hand, pose, prop position), say so; use "match-cut"
+  transitions between scenes where an action carries over.
+- Open with a hook in the first 2 seconds. End on a clean product packshot that sets up the endCard.
+- Durations: 2–5 s per shot; the total should land close to the target length.
+- music: mood, bpm and how the cuts follow the beat. voiceover only if it helps; keep it short.`;
+
+export async function writeShotList(input: {
+  brief: Brief;
+  brand: BrandKit;
+  assets: AssetRef[];
+  targetSec: number;
+}): Promise<ShotList> {
+  if (!hasNemotron()) return demoShotList(input.brief, input.assets, input.targetSec);
+  const list = await askJson({
     tier: "ultra",
-    schema: ReelPlan,
+    schema: ShotList,
     system: SYSTEM,
     user: [
-      `Brand kit: ${JSON.stringify(brand)}`,
-      `Brief: ${JSON.stringify(brief)}`,
-      feedback ? `The owner asked for these changes: ${feedback}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
+      `Brand: ${JSON.stringify(input.brand)}`,
+      `Brief: ${JSON.stringify(input.brief)}`,
+      `Target length: ${input.targetSec} seconds, vertical 9:16.`,
+      input.assets.length
+        ? `Locked assets (use these names in references):\n${input.assets
+            .map((a) => `- ${a.name} (${a.kind}): ${a.description ?? "no description"}`)
+            .join("\n")}`
+        : "No locked assets yet — describe the product consistently in every shot.",
+    ].join("\n\n"),
     temperature: 0.8,
   });
+  return normalize(list);
 }

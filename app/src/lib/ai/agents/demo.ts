@@ -1,5 +1,6 @@
 // Demo outputs used when NEBIUS_API_KEY is not set, so the whole app runs offline for UI work and tests.
-import type { AdCopy, BrandKit, Brief, ReelPlan } from "../schemas";
+import type { AdCopy, BrandKit, Brief, ShotList } from "../schemas";
+import type { AssetRef } from "./director";
 
 export function demoBrief(notes: string, brand: BrandKit): Brief {
   const firstLine = notes.split("\n")[0]?.trim() || "Our new special";
@@ -15,20 +16,42 @@ export function demoBrief(notes: string, brand: BrandKit): Brief {
   };
 }
 
-export function demoPlan(brief: Brief, brand: BrandKit): ReelPlan {
-  const look = `warm natural light, shallow depth of field, ${brand.primaryColor} accents, vertical 9:16`;
+export function demoShotList(brief: Brief, assets: AssetRef[], targetSec: number): ShotList {
+  const product = assets.find((a) => a.kind === "product")?.name;
+  const refs = product ? [product] : [];
+  const perShot = Math.min(5, Math.max(2, Math.round(targetSec / 6)));
   return {
-    title: `${brief.product} — launch Reel`,
-    hook: `Close-up reveal of ${brief.product}`,
-    shots: [
-      { description: `Macro reveal of ${brief.product}`, prompt: `macro shot of ${brief.product}, ${look}`, kind: "video", style: "cinematic", durationSec: 3, caption: "Wait for it…" },
-      { description: `Customer enjoying ${brief.product}`, prompt: `happy customer enjoying ${brief.product} in ${brand.name}, ${look}`, kind: "image", style: "lifestyle", durationSec: 3, caption: brief.keyPoints[0] ?? "Made fresh" },
-      { description: `Hero product shot`, prompt: `studio hero shot of ${brief.product} on a clean surface, ${look}`, kind: "image", style: "product", durationSec: 3, caption: brief.price ?? "You'll love it" },
-      { description: `Storefront / brand moment`, prompt: `inviting storefront of a ${brand.industry} business at golden hour, ${look}`, kind: "image", style: "lifestyle", durationSec: 3, caption: brief.deadline ?? "Limited time" },
-      { description: `CTA end card`, prompt: `minimal background in ${brand.primaryColor} with soft texture, ${look}`, kind: "image", style: "product", durationSec: 2.5, caption: brief.cta },
+    title: `${brief.product} — spot`,
+    logline: `One moment with ${brief.product} changes the whole day.`,
+    stylePrefix: {
+      look: "high-budget commercial, photoreal, crisp detail",
+      lighting: "soft bright daylight from camera side",
+      camera: "35mm, shallow depth of field, smooth gimbal moves",
+      color: "clean whites with warm accents, gentle contrast",
+      avoid: "on-screen text, fake logos, warped hands, extra products",
+    },
+    scenes: [
+      {
+        number: 1,
+        title: "Hook",
+        location: "sunlit kitchen counter",
+        shots: [
+          { id: "1A", beat: "Macro reveal of the product", prompt: `extreme close-up of ${brief.product} on a marble counter`, references: refs, camera: "slow push-in", motion: ["steam curls up", "light sweeps across the surface"], durationSec: perShot, transition: "cut" },
+          { id: "1B", beat: "A hand reaches in", prompt: `a hand picks up ${brief.product}`, references: refs, camera: "top-down", motion: ["hand enters from right", "lifts the product", "exits frame"], durationSec: perShot, transition: "cut", continuity: "same product position as 1A" },
+        ],
+      },
+      {
+        number: 2,
+        title: "Payoff",
+        location: "bright living room",
+        shots: [
+          { id: "2A", beat: "Enjoying the product", prompt: `a person relaxes on a sofa with ${brief.product}`, references: refs, camera: "orbit left", motion: ["sits back", "smiles to camera", "raises the product slightly"], durationSec: perShot, transition: "match-cut" },
+          { id: "2B", beat: "Packshot", prompt: `${brief.product} centered on a clean surface`, references: refs, camera: "slow orbit", motion: ["product rotates a quarter turn"], durationSec: perShot, transition: "dissolve" },
+        ],
+      },
     ],
-    voiceover: `${brief.offer}. ${brief.keyPoints.slice(0, 2).join(". ")}. ${brief.cta} at ${brand.name}.`,
-    musicMood: "upbeat acoustic",
+    music: { mood: "upbeat modern pop", bpm: 110, notes: "cut on every second beat" },
+    endCard: { headline: brief.offer, cta: brief.cta },
   };
 }
 

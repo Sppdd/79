@@ -1,6 +1,6 @@
 // Agent 4 — caption, hashtags and 3 Meta ad copy variants for A/B testing → Nemotron Super.
 import { askJson, hasNemotron } from "../nemotron";
-import { AdCopy, type BrandKit, type Brief, type ReelPlan } from "../schemas";
+import { AdCopy, type BrandKit, type Brief, type ShotList } from "../schemas";
 import { demoAdCopy } from "./demo";
 
 const SYSTEM = `You write high-converting Meta (Facebook/Instagram) ad copy for small businesses.
@@ -18,7 +18,7 @@ For each variant:
 caption: the organic Reel caption (1–3 short lines, can use 1–2 emoji). hashtags: 3–6 relevant tags with #.
 Match the brand voice. Do not invent facts that are not in the brief.`;
 
-export async function writeAdCopy(brief: Brief, plan: ReelPlan, brand: BrandKit): Promise<AdCopy> {
+export async function writeAdCopy(brief: Brief, list: ShotList, brand: BrandKit): Promise<AdCopy> {
   if (!hasNemotron()) return demoAdCopy(brief);
   return askJson({
     tier: "super",
@@ -26,7 +26,7 @@ export async function writeAdCopy(brief: Brief, plan: ReelPlan, brand: BrandKit)
     system: SYSTEM,
     user: `Brand: ${brand.name}, ${brand.industry}. Voice: ${brand.voice}. Audience: ${brand.audience}.
 Brief: ${JSON.stringify(brief)}
-Reel hook: ${plan.hook}
-Reel voiceover: ${plan.voiceover}`,
+Ad idea: ${list.logline}
+End card: ${list.endCard.headline} — ${list.endCard.cta}`,
   });
 }

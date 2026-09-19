@@ -51,3 +51,6 @@ next-env.d.ts
 
 # local renders (RENDER_MODE=local)
 /public/renders/
+
+# local uploads (no Blob token)
+/public/uploads/

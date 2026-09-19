@@ -1,8 +1,8 @@
 // Database access. Neon Postgres in production (DATABASE_URL), embedded PGlite locally — same schema, same queries.
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { BrandKit } from "@/lib/ai/schemas";
-import { bootstrapSql, brandKits, projects, type Project, type ShotState } from "./schema";
+import { assets, bootstrapSql, brandKits, projects, type Asset, type Project } from "./schema";
 
 type Db = PgDatabase<PgQueryResultHKT>;
 let ready: Promise<Db> | undefined;
@@ -35,7 +35,14 @@ function db(): Promise<Db> {
   return ready;
 }
 
-export async function createProject(p: { id: string; deviceId: string; notes: string; brand: BrandKit }) {
+export async function createProject(p: {
+  id: string;
+  deviceId: string;
+  notes: string;
+  brand: BrandKit;
+  assetIds: string[];
+  targetSec: number;
+}) {
   await (await db()).insert(projects).values(p);
 }
 
@@ -52,14 +59,6 @@ export async function updateProject(id: string, patch: Partial<Omit<Project, "id
   await (await db()).update(projects).set(patch).where(eq(projects.id, id));
 }
 
-/** Atomic per-shot update so parallel shot steps never overwrite each other. */
-export async function patchShot(id: string, index: number, shot: ShotState) {
-  await (await db())
-    .update(projects)
-    .set({ shots: sql`jsonb_set(${projects.shots}, ${`{${index}}`}::text[], ${JSON.stringify(shot)}::jsonb)` })
-    .where(eq(projects.id, id));
-}
-
 export async function getBrandKit(deviceId: string): Promise<BrandKit | undefined> {
   const [row] = await (await db()).select().from(brandKits).where(eq(brandKits.deviceId, deviceId));
   return row?.kit;
@@ -70,4 +69,26 @@ export async function saveBrandKit(deviceId: string, kit: BrandKit) {
     .insert(brandKits)
     .values({ deviceId, kit })
     .onConflictDoUpdate({ target: brandKits.deviceId, set: { kit, updatedAt: new Date() } });
+}
+
+export async function createAsset(a: Omit<Asset, "createdAt" | "locked" | "description"> & { description?: string }) {
+  await (await db()).insert(assets).values(a);
+}
+
+export async function listAssets(deviceId: string): Promise<Asset[]> {
+  return (await db()).select().from(assets).where(eq(assets.deviceId, deviceId)).orderBy(desc(assets.createdAt));
+}
+
+/** Assets by id, restricted to the owner's device. */
+export async function getAssets(deviceId: string, ids: string[]): Promise<Asset[]> {
+  if (!ids.length) return [];
+  return (await db()).select().from(assets).where(and(eq(assets.deviceId, deviceId), inArray(assets.id, ids)));
+}
+
+export async function updateAsset(deviceId: string, id: string, patch: Partial<Pick<Asset, "name" | "kind" | "description" | "locked">>) {
+  await (await db()).update(assets).set(patch).where(and(eq(assets.deviceId, deviceId), eq(assets.id, id)));
+}
+
+export async function deleteAsset(deviceId: string, id: string) {
+  await (await db()).delete(assets).where(and(eq(assets.deviceId, deviceId), eq(assets.id, id)));
 }

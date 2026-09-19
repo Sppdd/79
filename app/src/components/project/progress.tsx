@@ -8,10 +8,10 @@ export function Progress({ project }: { project: ClientProject }) {
   const failed = project.status === "failed";
 
   return (
-    <Group header="Your director is working" footer={failed ? project.error ?? undefined : undefined}>
+    <Group header="Your director is planning" footer={failed ? (project.error ?? undefined) : "Usually 1–2 minutes."}>
       {STAGES.map((stage, i) => {
-        const done = current > i || project.status === "done";
-        const active = current === i;
+        const done = current > i;
+        const active = current === i || (failed && i === Math.max(current, 0));
         return (
           <div key={stage.status} className="flex items-center gap-3 px-4 py-2.5">
             {failed && active ? (
@@ -23,9 +23,7 @@ export function Progress({ project }: { project: ClientProject }) {
             ) : (
               <Circle size={22} className="text-separator" />
             )}
-            <div className="flex-1">
-              <p className={`text-[15px] ${done || active ? "" : "text-secondary"}`}>{stage.label}</p>
-            </div>
+            <p className={`flex-1 text-[15px] ${done || active ? "" : "text-secondary"}`}>{stage.label}</p>
             <span className="text-[12px] text-secondary">{stage.model}</span>
           </div>
         );

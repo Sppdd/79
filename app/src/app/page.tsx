@@ -1,29 +1,47 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Clapperboard, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { AssetThumb } from "@/components/assets/asset-thumb";
+import { UploadSheet } from "@/components/assets/upload-sheet";
 import { Group, LargeTitle, PrimaryButton } from "@/components/ios/primitives";
+import type { ClientAsset } from "@/components/project/types";
+
+const LENGTHS = [15, 30, 45] as const;
 
 const STARTERS = [
   { label: "☕️ New product", text: "New cinnamon oat latte, $4.50\nOnly this weekend\nMade with local honey" },
   { label: "🏷️ Flash sale", text: "20% off all candles until Sunday\nHand-poured soy wax\nFree gift wrap" },
-  { label: "🎉 Event", text: "Live acoustic night this Friday 7pm\nFree entry, happy hour drinks\nBring a friend" },
+  { label: "🎧 Launch", text: "Launching our wireless headphones\nOne tap switches the noisy world off\nPre-order now" },
 ];
 
 export default function CreatePage() {
   const router = useRouter();
   const [notes, setNotes] = useState("");
+  const [length, setLength] = useState<(typeof LENGTHS)[number]>(30);
+  const [assets, setAssets] = useState<ClientAsset[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
-  async function makeReel() {
+  useEffect(() => {
+    fetch("/api/assets")
+      .then((r) => r.json())
+      .then(setAssets)
+      .catch(() => {});
+  }, []);
+
+  const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  async function plan() {
     setBusy(true);
     setError(undefined);
-    const res = await fetch("/api/reels", {
+    const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ notes }),
+      body: JSON.stringify({ notes, assetIds: selected, targetSec: length }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -36,55 +54,73 @@ export default function CreatePage() {
 
   return (
     <main>
-      <LargeTitle title="Create" subtitle="Your notes in, a Reel that sells out." />
+      <LargeTitle title="Create" subtitle="Plan a commercial with your AI director." />
 
-      <Group header="What are you promoting?" footer="Product, price, offer, deadline — rough notes are fine.">
+      <Group header="What are we selling?" footer="Product, offer, price, deadline, the feeling — rough notes are fine.">
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          rows={7}
-          placeholder={"e.g. New cinnamon oat latte, $4.50\nOnly this weekend"}
+          rows={6}
+          placeholder={"e.g. Launching our wireless headphones\nOne tap switches the noisy world off"}
           className="block w-full resize-none bg-transparent p-4 text-[17px] leading-snug outline-none placeholder:text-secondary"
         />
       </Group>
-
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-2">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
         {STARTERS.map((s) => (
-          <button
-            key={s.label}
-            onClick={() => setNotes(s.text)}
-            className="shrink-0 rounded-full bg-card px-3.5 py-2 text-[15px] active:opacity-60"
-          >
+          <button key={s.label} onClick={() => setNotes(s.text)} className="shrink-0 rounded-full bg-card px-3.5 py-2 text-[15px] active:opacity-60">
             {s.label}
           </button>
         ))}
       </div>
 
-      <div className="px-4 pt-4">
-        <PrimaryButton onClick={makeReel} disabled={busy || notes.trim().length < 3}>
-          {busy ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} />}
-          {busy ? "Starting your director…" : "Make Reel"}
+      <Group
+        header="Reference photos"
+        footer="Real photos of your product keep it looking exactly right in every shot. Tap to use them in this ad."
+      >
+        <div className="no-scrollbar flex gap-3 overflow-x-auto p-3">
+          <button onClick={() => setUploading(true)} className="w-20 shrink-0 text-left active:opacity-70">
+            <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-dashed border-separator text-tint">
+              <Plus size={28} />
+            </div>
+            <p className="pt-1 text-[12px] text-tint">Add photo</p>
+          </button>
+          {assets.map((a) => (
+            <AssetThumb key={a.id} asset={a} selected={selected.includes(a.id)} onClick={() => toggle(a.id)} />
+          ))}
+        </div>
+      </Group>
+
+      <Group header="Length">
+        <div className="flex gap-1 p-1">
+          {LENGTHS.map((l) => (
+            <button
+              key={l}
+              onClick={() => setLength(l)}
+              className={`flex-1 rounded-lg py-2 text-[15px] font-medium ${length === l ? "bg-tint text-white" : "text-label"}`}
+            >
+              {l}s
+            </button>
+          ))}
+        </div>
+      </Group>
+
+      <div className="px-4 pt-2">
+        <PrimaryButton onClick={plan} disabled={busy || notes.trim().length < 3}>
+          {busy ? <Loader2 className="animate-spin" size={20} /> : <Clapperboard size={20} />}
+          {busy ? "Calling the director…" : "Plan my commercial"}
         </PrimaryButton>
-        {error && <p className="pt-2 text-center text-[15px] text-ios-red">{error}</p>}
+        <p className="pt-2 text-center text-[13px] text-secondary">Planning is free — no video is generated yet.</p>
+        {error && <p className="pt-1 text-center text-[15px] text-ios-red">{error}</p>}
       </div>
 
-      <Group header="How it works">
-        {[
-          ["🧠", "Nemotron writes the brief", "Understands your notes and brand"],
-          ["🎬", "Nemotron 3 Ultra directs", "Hook, script, shot list, captions, voiceover"],
-          ["🖼️", "Shots are generated", "Best media model for each shot"],
-          ["🔍", "Nemotron reviews every frame", "Bad shots are regenerated automatically"],
-          ["🎞️", "Rendered on Nebius", "9:16, 1:1 and 4:5 — ready for Reels & Meta ads"],
-        ].map(([emoji, title, sub]) => (
-          <div key={title} className="flex items-center gap-3 px-4 py-3">
-            <span className="text-2xl">{emoji}</span>
-            <div>
-              <p className="text-[17px]">{title}</p>
-              <p className="text-[13px] text-secondary">{sub}</p>
-            </div>
-          </div>
-        ))}
-      </Group>
+      <UploadSheet
+        open={uploading}
+        onClose={() => setUploading(false)}
+        onUploaded={(a) => {
+          setAssets((list) => [a, ...list]);
+          setSelected((s) => [...s, a.id]);
+        }}
+      />
     </main>
   );
 }
