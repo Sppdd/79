@@ -1,0 +1,12 @@
+{
+  "name": "reel-render-job",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node render.ts"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@vercel/blob": "^2.0.0"
+  }
+}

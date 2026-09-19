@@ -1,0 +1,10 @@
+{
+  "name": "NoteReel",
+  "short_name": "NoteReel",
+  "description": "Turn quick notes into Reels that sell.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
