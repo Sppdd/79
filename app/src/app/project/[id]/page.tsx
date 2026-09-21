@@ -95,7 +95,7 @@ export default function ProjectPage({ params }: PageProps<"/project/[id]">) {
             </p>
           </Group>
 
-          <ShootGate list={list} engineReady={false} />
+          <ShootGate list={list} engineReady={project.engineReady} />
           {project.adCopy && <AdCopyList adCopy={project.adCopy} />}
 
           {!chat.open && (
