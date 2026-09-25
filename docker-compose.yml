@@ -1,0 +1,40 @@
+# Local run: the app, Postgres, and a timer that pokes the agent's own jobs (follow-ups, alerts, daily summary).
+services:
+  app:
+    build: ./app
+    ports: ["3000:3000"]
+    env_file: [app/.env]
+    environment:
+      DATABASE_URL: postgres://sanad:sanad@db:5432/sanad
+      MEDIA_DIR: /data/media
+      CRON_SECRET: ${CRON_SECRET:-local-dev}
+    volumes: ["app-data:/data"]
+    depends_on: [db]
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sanad
+      POSTGRES_PASSWORD: sanad
+      POSTGRES_DB: sanad
+    volumes: ["db-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sanad"]
+      interval: 10s
+
+  # Nebius endpoints have no scheduler, so the timer ships with the app.
+  cron:
+    image: alpine:3.20
+    depends_on: [app]
+    command: >
+      sh -c "apk add --no-cache curl >/dev/null &&
+             while true; do
+               curl -fsS -X POST -H 'authorization: Bearer ${CRON_SECRET:-local-dev}' http://app:3000/api/cron || true;
+               sleep 300;
+             done"
+    restart: unless-stopped
+
+volumes:
+  app-data:
+  db-data:

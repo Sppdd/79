@@ -3,10 +3,10 @@ import { TabBar } from "@/components/ios/tab-bar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NoteReel",
-  description: "An AI commercial studio — NVIDIA Nemotron directs, Nebius shoots.",
+  title: "سند",
+  description: "مساعد واتساب لمتجرك — يرد على الزبائن ويسجل الطلبات.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "NoteReel", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "سند", statusBarStyle: "default" },
   icons: { icon: "/icons/icon.svg", apple: "/icons/icon.svg" },
 };
 
@@ -23,9 +23,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
+    // The owner's console is Arabic, so the whole app is right-to-left.
+    <html lang="ar" dir="rtl" className="h-full antialiased">
       <body className="min-h-full font-sans">
-        {/* Phone-width column; on desktop it looks like the app running on a device. */}
         <div className="mx-auto min-h-dvh max-w-md bg-grouped pb-24">{children}</div>
         <TabBar />
       </body>

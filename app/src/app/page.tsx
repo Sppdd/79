@@ -1,126 +1,95 @@
 "use client";
 
-import { Clapperboard, Loader2, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { MessageSquareDashed, Send } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AssetThumb } from "@/components/assets/asset-thumb";
-import { UploadSheet } from "@/components/assets/upload-sheet";
-import { Group, LargeTitle, PrimaryButton } from "@/components/ios/primitives";
-import type { ClientAsset } from "@/components/project/types";
+import { Group, LargeTitle, Pill } from "@/components/ios/primitives";
 
-const LENGTHS = [15, 30, 45] as const;
+type Chat = {
+  id: string;
+  waId: string;
+  name?: string | null;
+  handedOver: boolean;
+  lastMessageAt: string;
+  preview: string;
+};
 
-const STARTERS = [
-  { label: "☕️ New product", text: "New cinnamon oat latte, $4.50\nOnly this weekend\nMade with local honey" },
-  { label: "🏷️ Flash sale", text: "20% off all candles until Sunday\nHand-poured soy wax\nFree gift wrap" },
-  { label: "🎧 Launch", text: "Launching our wireless headphones\nOne tap switches the noisy world off\nPre-order now" },
-];
+export default function InboxPage() {
+  const [chats, setChats] = useState<Chat[]>();
+  const [test, setTest] = useState("");
+  const [sending, setSending] = useState(false);
 
-export default function CreatePage() {
-  const router = useRouter();
-  const [notes, setNotes] = useState("");
-  const [length, setLength] = useState<(typeof LENGTHS)[number]>(30);
-  const [assets, setAssets] = useState<ClientAsset[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const load = () =>
+    fetch("/api/chats")
+      .then((r) => r.json())
+      .then(setChats)
+      .catch(() => setChats([]));
 
   useEffect(() => {
-    fetch("/api/assets")
-      .then((r) => r.json())
-      .then(setAssets)
-      .catch(() => {});
+    load();
+    const timer = setInterval(load, 5000);
+    return () => clearInterval(timer);
   }, []);
 
-  const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-
-  async function plan() {
-    setBusy(true);
-    setError(undefined);
-    const res = await fetch("/api/projects", {
+  async function sendTest() {
+    if (!test.trim()) return;
+    setSending(true);
+    await fetch("/api/sim", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ notes, assetIds: selected, targetSec: length }),
+      body: JSON.stringify({ text: test, name: "زبون تجريبي" }),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
-      setBusy(false);
-      return;
-    }
-    router.push(`/project/${data.id}`);
+    setTest("");
+    setSending(false);
+    load();
   }
 
   return (
     <main>
-      <LargeTitle title="Create" subtitle="Plan a commercial with your AI director." />
+      <LargeTitle title="المحادثات" subtitle="المساعد يرد، وأنت تتدخل وقت ما تحب." />
 
-      <Group header="What are we selling?" footer="Product, offer, price, deadline, the feeling — rough notes are fine.">
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={6}
-          placeholder={"e.g. Launching our wireless headphones\nOne tap switches the noisy world off"}
-          className="block w-full resize-none bg-transparent p-4 text-[17px] leading-snug outline-none placeholder:text-secondary"
-        />
-      </Group>
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
-        {STARTERS.map((s) => (
-          <button key={s.label} onClick={() => setNotes(s.text)} className="shrink-0 rounded-full bg-card px-3.5 py-2 text-[15px] active:opacity-60">
-            {s.label}
-          </button>
-        ))}
-      </div>
+      {chats?.length === 0 && (
+        <div className="flex flex-col items-center gap-3 px-8 pt-16 text-center text-secondary">
+          <MessageSquareDashed size={48} strokeWidth={1.4} />
+          <p className="text-[17px]">ما وصلتك رسائل بعد</p>
+          <p className="text-[15px]">جرب ترسل رسالة تجريبية من الأسفل.</p>
+        </div>
+      )}
 
-      <Group
-        header="Reference photos"
-        footer="Real photos of your product keep it looking exactly right in every shot. Tap to use them in this ad."
-      >
-        <div className="no-scrollbar flex gap-3 overflow-x-auto p-3">
-          <button onClick={() => setUploading(true)} className="w-20 shrink-0 text-left active:opacity-70">
-            <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-dashed border-separator text-tint">
-              <Plus size={28} />
-            </div>
-            <p className="pt-1 text-[12px] text-tint">Add photo</p>
-          </button>
-          {assets.map((a) => (
-            <AssetThumb key={a.id} asset={a} selected={selected.includes(a.id)} onClick={() => toggle(a.id)} />
+      {!!chats?.length && (
+        <Group>
+          {chats.map((c) => (
+            <Link key={c.id} href={`/chat/${c.id}`} className="block px-4 py-3 active:bg-fill">
+              <div className="flex items-center gap-2">
+                <p className="flex-1 truncate text-[17px]">{c.name || c.waId}</p>
+                {c.handedOver && <Pill tone="orange">أنت ترد</Pill>}
+                <span className="text-[13px] text-secondary">{new Date(c.lastMessageAt).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+              <p className="truncate text-[15px] text-secondary">{c.preview}</p>
+            </Link>
           ))}
+        </Group>
+      )}
+
+      <Group header="رسالة تجريبية" footer="تنفع للتجربة بدون واتساب — تمر بنفس مسار الرسائل الحقيقية.">
+        <div className="flex items-center gap-2 p-2">
+          <input
+            value={test}
+            onChange={(e) => setTest(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendTest()}
+            placeholder="مثال: شكد سعر التوصيل للكرادة؟"
+            className="flex-1 bg-transparent px-2 py-2 text-[16px] outline-none placeholder:text-secondary"
+          />
+          <button
+            onClick={sendTest}
+            disabled={sending || !test.trim()}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-tint text-white disabled:opacity-40"
+            aria-label="إرسال"
+          >
+            <Send size={18} />
+          </button>
         </div>
       </Group>
-
-      <Group header="Length">
-        <div className="flex gap-1 p-1">
-          {LENGTHS.map((l) => (
-            <button
-              key={l}
-              onClick={() => setLength(l)}
-              className={`flex-1 rounded-lg py-2 text-[15px] font-medium ${length === l ? "bg-tint text-white" : "text-label"}`}
-            >
-              {l}s
-            </button>
-          ))}
-        </div>
-      </Group>
-
-      <div className="px-4 pt-2">
-        <PrimaryButton onClick={plan} disabled={busy || notes.trim().length < 3}>
-          {busy ? <Loader2 className="animate-spin" size={20} /> : <Clapperboard size={20} />}
-          {busy ? "Calling the director…" : "Plan my commercial"}
-        </PrimaryButton>
-        <p className="pt-2 text-center text-[13px] text-secondary">Planning is free — no video is generated yet.</p>
-        {error && <p className="pt-1 text-center text-[15px] text-ios-red">{error}</p>}
-      </div>
-
-      <UploadSheet
-        open={uploading}
-        onClose={() => setUploading(false)}
-        onUploaded={(a) => {
-          setAssets((list) => [a, ...list]);
-          setSelected((s) => [...s, a.id]);
-        }}
-      />
     </main>
   );
 }

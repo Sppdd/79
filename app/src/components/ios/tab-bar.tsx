@@ -1,14 +1,14 @@
 "use client";
 
-import { Clapperboard, Images, Palette, Sparkles } from "lucide-react";
+import { MessagesSquare, Package, Settings, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/", label: "Create", icon: Sparkles },
-  { href: "/projects", label: "Projects", icon: Clapperboard },
-  { href: "/library", label: "Library", icon: Images },
-  { href: "/brand", label: "Brand", icon: Palette },
+  { href: "/", label: "المحادثات", icon: MessagesSquare },
+  { href: "/orders", label: "الطلبات", icon: ShoppingBag },
+  { href: "/catalog", label: "المنتجات", icon: Package },
+  { href: "/settings", label: "الإعدادات", icon: Settings },
 ];
 
 export function TabBar() {
@@ -17,7 +17,7 @@ export function TabBar() {
     <nav className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-separator bg-bar backdrop-blur-xl backdrop-saturate-150">
       <ul className="mx-auto flex max-w-md">
         {TABS.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? path === "/" : path.startsWith(href) || (href === "/projects" && path.startsWith("/project/"));
+          const active = href === "/" ? path === "/" || path.startsWith("/chat/") : path.startsWith(href);
           return (
             <li key={href} className="flex-1">
               <Link

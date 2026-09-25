@@ -1,10 +1,11 @@
 import type { NextConfig } from "next";
-import { withWorkflow } from "workflow/next";
 
 const nextConfig: NextConfig = {
-  // PGlite ships WASM + data files that must not be bundled.
-  serverExternalPackages: ["@electric-sql/pglite"],
+  // Runs the same way in Docker on a laptop and on a Nebius Serverless Endpoint.
+  output: "standalone",
+  // PGlite and onnxruntime ship native/WASM files that must not be bundled.
+  serverExternalPackages: ["@electric-sql/pglite", "onnxruntime-node"],
   images: { unoptimized: true },
 };
 
-export default withWorkflow(nextConfig);
+export default nextConfig;

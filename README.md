@@ -1,88 +1,95 @@
-# NoteReel
+# سند · Sanad
 
-**Type quick notes. Get a Reel that sells.**
-NoteReel is an iOS-style web app for small businesses. You write a few rough notes
-("cinnamon oat latte, $4.50, this weekend only") and an AI creative team turns them into a
-short vertical video ad: hook, shots, captions, voiceover, a Reel caption, and three Meta ad copy variants.
+**An Arabic WhatsApp agent for small shops.** A customer messages the shop; Sanad answers in their own dialect from
+the shop's real catalog, takes the order or the booking, calls the owner when it should, and follows up on its own.
+The owner watches everything from a phone-sized console.
 
-Track: **Best Apps and Agents** (Nebius x NVIDIA Global AI Hackathon)
+Track: **Best Apps and Agents** — Nebius x NVIDIA Global AI Hackathon.
 
-## How NVIDIA Nemotron and Nebius are used
+## Why this is different
 
-The media models (images, video, voice) are the camera crew. **Nemotron is the creative director and the quality checker.**
+Most "AI reply bots" happily invent a price. Sanad can't:
 
-| Step | What happens | Model / service |
-|---|---|---|
-| Research | Brand context and niche trends | Tavily |
-| Brief | Messy notes → structured marketing brief | **Nemotron 3 Super** on Nebius Token Factory |
-| Direct | Hook, 4–8 shot storyboard, generation prompts, captions, voiceover script | **Nemotron 3 Ultra** on Token Factory |
-| Shoot | Each shot routed to the best model for its style (product / cinematic / lifestyle) | fal.ai (FLUX, Kling, …) |
-| QA | A vision model (Gemma 3 on Token Factory) describes each frame; **Nemotron 3 Super** judges it against the shot and brand, and writes a fixed prompt for failing shots, which are regenerated | Token Factory |
-| Copy | Reel caption, hashtags, 3 Meta ad variants for A/B testing | **Nemotron 3 Super** |
-| Render | ffmpeg assembles 9:16, 1:1 and 4:5 MP4s with captions + voiceover | **Nebius Serverless Jobs** |
+1. Every factual answer must come from the shop's catalog (`searchCatalog`).
+2. Before any reply is sent, a second model checks each claim against what was actually looked up.
+3. If a claim isn't supported, the agent rewrites it once, and otherwise says it will check with the owner — and
+   the owner gets a notification.
 
-Why this split: Ultra is used once per Reel for the one decision that needs deep reasoning; the frequent calls go to
-smaller, faster models, so the app stays responsive and credits go further. The QA loop means expensive video
-generation is only redone for the shots that actually failed.
+In a 20-question Iraqi-Arabic test set (`npm run eval`, judged by Nemotron 3 Ultra): **19/20 correct behaviour,
+0 invented facts**, median reply 10 s.
 
-## Architecture
+## How NVIDIA models and Nebius are used
 
-```
-app/          Next.js PWA (UI + API + durable workflow)      → Vercel
-render-job/   ffmpeg render container                         → Nebius Serverless Jobs
-```
+| Job | Model / service |
+|---|---|
+| Triage every message (intent, difficulty, language) | **Nemotron 3.5 Lightning** on Token Factory |
+| Everyday replies, orders, bookings, follow-ups | **Nemotron 3 Super** |
+| Complaints, haggling, refunds, the daily summary | **Nemotron 3 Ultra** |
+| Checking the reply invents nothing | **Nemotron 3.5 Lightning** (guardrail pass) |
+| Remembering a customer between chats | **Nemotron 3 Nano** |
+| Catalog search | Qwen3-Embedding-8B on Token Factory + word matching |
+| Turning a pasted price list into a catalog | **Nemotron 3 Super** |
+| Hearing and speaking voice notes (next phase) | **Nemotron 3.5 ASR** and **NVIDIA Magpie TTS**, on CPU |
 
-- `app/src/workflows/make-reel.ts` — the whole pipeline, one readable file of durable steps (Vercel Workflow).
-- `app/src/lib/ai/nemotron.ts` — the only file that talks to Token Factory.
-- `app/src/lib/ai/agents/*` — one file per agent role (brief, director, qa, adcopy), each with a Zod schema.
-- `app/src/lib/media/*` — the swappable media layer (`fal` or `mock`).
-- `app/src/lib/render/nebius.ts` — the only file that talks to Nebius AI Cloud.
-- `app/src/db/*` — Drizzle; Neon Postgres in production, embedded PGlite locally.
+Small models do the constant work, the big one only handles turns where a sale is at stake — so a conversation
+costs about **$0.002**.
 
-## Run locally
+## What it can do
+
+- Answers questions about products, prices, stock, delivery and hours — only from the catalog.
+- Takes **orders** and **bookings**, and confirms with a short reference.
+- **Escalates** to the owner: unknown answers, complaints, refunds, discount requests, "let me talk to a person".
+- **Follows up** by itself when a customer says they'll think about it.
+- Sends the owner an **end-of-day summary** of what customers asked for and what needs them.
+- The owner can take over any chat, and the agent goes quiet until they hand it back.
+
+## Run it
 
 ```bash
 cd app
-cp .env.example .env.local   # every key is optional; without keys the app runs in demo mode
+cp .env.example .env          # add NEBIUS_API_KEY; WhatsApp keys are optional
 npm install
-npm run dev                  # http://localhost:3000
+npm run dev                   # http://localhost:3000
+npm run seed                  # a demo Baghdad café with a real price list
+npm run chat "شكد سعر اللاتيه؟"   # talk to it like a customer
+npm run eval                  # the 20-question quality check
 ```
 
-| Keys you set | What you get |
-|---|---|
-| none | Full UI with sample plans and placeholder images |
-| `NEBIUS_API_KEY` | Real Nemotron brief, direction, QA and ad copy |
-| `+ FAL_KEY` | Real generated images, video clips, voiceover and music |
-| `+ Blob + NEBIUS_*` | Rendered MP4 files from a Nebius Serverless Job |
+Without WhatsApp keys everything still works: the console has a built-in simulator that goes through the same
+pipeline as a real message.
 
-`npm run models` lists the NVIDIA models your Token Factory key can use.
+### With Docker (what gets deployed)
 
-**Render MP4s on your machine:** `brew install ffmpeg`, set `RENDER_MODE=local`, then press **Render video** in a
-Reel. Files land in `app/public/renders/<id>/`. Production uses the Nebius Serverless Job instead (same script).
+```bash
+docker compose up --build     # app + Postgres + the jobs timer
+```
 
-## Costs
+### Connecting real WhatsApp
 
-`MEDIA_QUALITY` picks the media tier. Nemotron calls are about $0.03 per Reel either way.
+1. Meta developer account → a WhatsApp app → use the **test number**, with your own number as a tester.
+2. Expose the app: `cloudflared tunnel --url http://localhost:3000`.
+3. Webhook URL `https://<tunnel>/api/whatsapp/webhook`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to `messages`.
+4. Put `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_APP_SECRET` in `.env`.
 
-| Tier | Models | Approx. per Reel |
-|---|---|---|
-| `draft` (default) | FLUX schnell + Seedance Lite 480p, 1 video shot | $0.10–0.20 |
-| `pro` | FLUX Pro 1.1 + Kling 2.1, up to 3 video shots | $1.00–1.40 |
+### Deploying to Nebius
 
-## Deploy
+The same image runs on a Nebius Serverless Endpoint (CPU preset) once AI Cloud is funded:
 
-1. **App → Vercel:** import the repo with root directory `app`. Add Neon Postgres and Blob from the Vercel Marketplace,
-   then add the remaining variables from `.env.example`. Every push to `main` deploys.
-2. **Renderer → Nebius:** build and push the container, then set `NEBIUS_JOB_IMAGE` to its path:
-   ```bash
-   cd render-job
-   docker build --platform linux/amd64 -t cr.<region>.nebius.cloud/<registry-id>/reel-render:latest .
-   docker push cr.<region>.nebius.cloud/<registry-id>/reel-render:latest
-   ```
-   The app starts one job per Reel through the Nebius REST API (`POST /ai/v1/jobs`). The job uploads the MP4s to
-   Blob and calls `/api/render/callback` (HMAC-signed), which resumes the workflow.
+```bash
+nebius ai endpoint create --name sanad --image <registry>/sanad --container-port 3000 \
+  --platform cpu-d3 --preset 4vcpu-16gb --public
+```
 
-Test the renderer locally: `docker run --rm -e BLOB_READ_WRITE_TOKEN=… reel-render ./manifest.json`
+## Layout
+
+```
+app/src/lib/agent/    brain (routing + guardrail loop), tools, memory, jobs, prompt
+app/src/lib/ai/       the only file that calls Token Factory (chat, tools, embeddings)
+app/src/lib/whatsapp/ Cloud API client + webhook parsing/verification
+app/src/app/api/      whatsapp webhook, simulator, console APIs, cron
+app/src/app/          the owner's console (Arabic, right-to-left)
+app/scripts/          seed, chat, eval, models
+```
 
 ## License
 
